@@ -170,6 +170,21 @@ export interface ApiResponse<T> {
 }
 
 /**
+ * API Endpoint Configuration
+ * Defines a custom API endpoint that serves dungeon data
+ */
+export interface ApiEndpointConfig {
+  id: string;
+  name: string;
+  path: string;              // e.g., "/api/custom/my-dungeon"
+  dungeonId: string;         // ID of the dungeon to serve
+  description?: string;
+  enabled: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/**
  * Dungeon validation rules
  */
 export class DungeonValidator {

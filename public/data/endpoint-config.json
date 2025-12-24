@@ -1,0 +1,24 @@
+{
+  "endpoints": [
+    {
+      "id": "endpoint-1766550831213-fczkoff",
+      "name": "Dark Cavern API",
+      "path": "/api/custom/dark-cavern",
+      "dungeonId": "dungeon-001",
+      "description": "Custom endpoint for The Dark Cavern dungeon",
+      "enabled": true,
+      "createdAt": "2025-12-24T04:33:51.229Z",
+      "updatedAt": "2025-12-24T04:33:51.230Z"
+    },
+    {
+      "id": "endpoint-1766550925625-l54qle8",
+      "name": "Shadow Fortress API",
+      "path": "/api/custom/shadow-fortress",
+      "dungeonId": "dungeon-002",
+      "description": "",
+      "enabled": true,
+      "createdAt": "2025-12-24T04:35:25.641Z",
+      "updatedAt": "2025-12-24T04:35:25.641Z"
+    }
+  ]
+}
