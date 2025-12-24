@@ -248,6 +248,15 @@ See `public/data/dungeon-data.json` for example dungeon configurations including
 - The Dark Cavern (Easy, Level 1)
 - Shadow Fortress (Medium, Level 5)
 
+## GitHub Copilot Instructions
+
+For AI assistants working with this codebase, comprehensive instructions are available in [`.github/copilot-instructions.md`](.github/copilot-instructions.md). This includes:
+- Project architecture and structure
+- API patterns and validation rules
+- Development workflow and best practices
+- Integration guidelines for client applications
+- Common tasks and troubleshooting
+
 ## License
 
 ISC
