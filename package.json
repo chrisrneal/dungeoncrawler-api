@@ -6,12 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "verify-supabase": "node scripts/verify-supabase-setup.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@supabase/supabase-js": "^2.89.0",
     "next": "^16.1.1",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
