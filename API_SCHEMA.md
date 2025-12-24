@@ -9,10 +9,17 @@ This document describes the complete data schema for the Dungeon Crawler API, in
 ## Table of Contents
 
 1. [Data Structures](#data-structures)
-2. [Type Definitions](#type-definitions)
-3. [Validation Rules](#validation-rules)
-4. [API Endpoints](#api-endpoints)
-5. [Import/Export Format](#importexport-format)
+2. [API Response Types](#api-response-types)
+   - [APIRoomData](#apiroomdata)
+   - [APIMonsterData](#apimonsterdata)
+   - [APIPuzzle](#apipuzzle)
+   - [APIStoryEvent](#apistoryevent)
+   - [APIRoomSecret](#apiroomsecret)
+   - [APILoreEntry](#apiloreentry)
+3. [Type Definitions](#type-definitions)
+4. [Validation Rules](#validation-rules)
+5. [API Endpoints](#api-endpoints)
+6. [Import/Export Format](#importexport-format)
 
 ---
 
@@ -162,6 +169,215 @@ interface RoomConnection {
   targetRoomId: string;         // Connected room ID
   locked?: boolean;              // Access restriction
   hidden?: boolean;              // Visibility state
+}
+```
+
+---
+
+## API Response Types
+
+This section describes the data structures returned by the API endpoints. These types represent the actual JSON format sent over HTTP and may differ from the internal domain model.
+
+### APIRoomData
+
+Represents complete room information as returned by the API.
+
+```typescript
+interface APIRoomData {
+  id: number;
+  type: string;
+  description: string;
+  x: number;
+  y: number;
+  connections: Direction[];
+  secret?: APIRoomSecret | null;
+  loreEntry?: APILoreEntry | null;
+  puzzle?: APIPuzzle | null;
+  storyEvent?: APIStoryEvent | null;
+  monsters?: APIMonsterData[];
+  isMiniBoss: boolean;
+  isTrap: boolean;
+  isRewardRoom: boolean;
+}
+```
+
+**Fields**:
+- `id` (number): Unique room identifier
+- `type` (string): Room type classification
+- `description` (string): Room description text
+- `x` (number): X coordinate on dungeon grid
+- `y` (number): Y coordinate on dungeon grid
+- `connections` (array): Available exits from this room
+- `secret` (object, optional): Hidden secret that can be found by searching
+- `loreEntry` (object, optional): Lore content for lore rooms (see [APILoreEntry](#apiloreentry))
+- `puzzle` (object, optional): Puzzle configuration for puzzle rooms
+- `storyEvent` (object, optional): Story event for story rooms
+- `monsters` (array, optional): Monsters present in combat/boss rooms
+- `isMiniBoss` (boolean): Whether this room contains a mini-boss
+- `isTrap` (boolean): Whether this room contains a trap
+- `isRewardRoom` (boolean): Whether this room contains special rewards
+
+---
+
+### APIMonsterData
+
+Represents monster information as returned by the API.
+
+```typescript
+interface APIMonsterData {
+  name: string;
+  level: number;
+  maxHealth: number;
+  damage: number;
+  defense: number;
+  agility: number;
+  specialAbility?: string;
+  goldValue: number;
+}
+```
+
+**Fields**:
+- `name` (string): Monster name
+- `level` (number): Monster level
+- `maxHealth` (number): Maximum hit points
+- `damage` (number): Attack damage value
+- `defense` (number): Defense rating
+- `agility` (number): Speed/initiative value
+- `specialAbility` (string, optional): Special ability description
+- `goldValue` (number): Gold dropped on defeat
+
+---
+
+### APIPuzzle
+
+Represents puzzle configuration as returned by the API.
+
+```typescript
+interface APIPuzzle {
+  type: string;
+  description: string;
+  question?: string;
+  answer?: string;
+  rewardGold?: number;
+}
+```
+
+**Fields**:
+- `type` (string): Puzzle type (e.g., "riddle", "logic", "pattern")
+- `description` (string): Puzzle description or context
+- `question` (string, optional): The puzzle question
+- `answer` (string, optional): The puzzle solution
+- `rewardGold` (number, optional): Gold reward for solving
+
+---
+
+### APIStoryEvent
+
+Represents story event configuration as returned by the API.
+
+```typescript
+interface APIStoryEvent {
+  title: string;
+  description: string;
+  choices?: Array<{
+    text: string;
+    outcome?: {
+      description: string;
+      effect?: string;
+    };
+  }>;
+}
+```
+
+**Fields**:
+- `title` (string): Story event title
+- `description` (string): Event narrative description
+- `choices` (array, optional): Available player choices
+  - `text` (string): Choice text
+  - `outcome` (object, optional): Result of this choice
+    - `description` (string): Outcome description
+    - `effect` (string, optional): Game effect of the choice
+
+---
+
+### APIRoomSecret
+
+Represents secret configuration as returned by the API.
+
+```typescript
+interface APIRoomSecret {
+  description: string;
+  rewardGold?: number;
+  revealCondition?: string;
+}
+```
+
+**Fields**:
+- `description` (string): Secret description
+- `rewardGold` (number, optional): Gold reward for finding the secret
+- `revealCondition` (string, optional): Condition for revealing the secret
+
+---
+
+### APILoreEntry
+
+Represents a lore fragment or story element from the API.
+
+```typescript
+interface APILoreEntry {
+  title: string;
+  type: 'journal' | 'inscription' | 'fragment' | 'document';
+  text: string;
+  category: 'history' | 'warning' | 'magic' | 'personal' | 'mundane' | 'mythology' | 'exploration';
+}
+```
+
+**Fields**:
+- `title` (string): Lore entry title
+- `type` (string): Type of lore document
+  - `'journal'`: Personal journal entries from adventurers or inhabitants
+  - `'inscription'`: Stone carvings or wall inscriptions
+  - `'fragment'`: Torn pages or partial documents
+  - `'document'`: Complete official documents or reports
+- `text` (string): Full lore text (can include newlines for formatting)
+- `category` (string): Lore category for classification
+  - `'history'`: Historical events and past kingdoms
+  - `'warning'`: Cautionary messages and dangers
+  - `'magic'`: Magical knowledge and rituals
+  - `'personal'`: Personal stories and letters
+  - `'mundane'`: Everyday documents and manifests
+  - `'mythology'`: Legends and divine lore
+  - `'exploration'`: Maps, clues, and exploration notes
+
+**Example**:
+```json
+{
+  "title": "Ancient Warning",
+  "type": "inscription",
+  "text": "Turn back, ye who enter here...",
+  "category": "warning"
+}
+```
+
+**Usage in Room Data**:
+Lore entries are included in lore rooms via the `loreEntry` field of `APIRoomData`:
+```json
+{
+  "id": 6,
+  "type": "lore",
+  "description": "Dusty tomes and scattered parchments cover an ancient desk.",
+  "x": 2,
+  "y": -1,
+  "connections": ["north", "south"],
+  "loreEntry": {
+    "title": "The Fall of the Silver Kingdom",
+    "type": "journal",
+    "text": "Day 42: The kingdom fell...",
+    "category": "history"
+  },
+  "isMiniBoss": false,
+  "isTrap": false,
+  "isRewardRoom": false
 }
 ```
 
