@@ -1,0 +1,265 @@
+{
+  "dungeons": [
+    {
+      "id": "dungeon-001",
+      "name": "The Dark Cavern",
+      "difficulty": "Easy",
+      "level": 1,
+      "size": {
+        "width": 5,
+        "height": 5
+      },
+      "description": "A beginner-friendly dungeon with basic monsters and simple puzzles",
+      "rooms": [
+        {
+          "id": "room-entrance-001",
+          "type": "entrance",
+          "coordinates": {
+            "x": 0,
+            "y": 0
+          },
+          "description": "The entrance to the dark cavern. Torches flicker on the walls.",
+          "connections": [
+            {
+              "direction": "north",
+              "targetRoomId": "room-combat-001",
+              "locked": false,
+              "hidden": false
+            }
+          ],
+          "visited": false,
+          "cleared": true
+        },
+        {
+          "id": "room-combat-001",
+          "type": "combat",
+          "coordinates": {
+            "x": 0,
+            "y": 1
+          },
+          "description": "A dimly lit chamber with scratches on the walls.",
+          "connections": [
+            {
+              "direction": "south",
+              "targetRoomId": "room-entrance-001",
+              "locked": false,
+              "hidden": false
+            },
+            {
+              "direction": "east",
+              "targetRoomId": "room-treasure-001",
+              "locked": false,
+              "hidden": false
+            }
+          ],
+          "monsters": [
+            {
+              "id": "monster-001",
+              "name": "Cave Bat",
+              "type": "flying",
+              "stats": {
+                "health": 20,
+                "attack": 5,
+                "defense": 2,
+                "speed": 15
+              },
+              "level": 1,
+              "description": "A small bat that guards the cave",
+              "loot": ["bat wing", "small health potion"]
+            }
+          ],
+          "visited": false,
+          "cleared": false
+        },
+        {
+          "id": "room-treasure-001",
+          "type": "treasure",
+          "coordinates": {
+            "x": 1,
+            "y": 1
+          },
+          "description": "A small alcove with a dusty chest in the corner.",
+          "connections": [
+            {
+              "direction": "west",
+              "targetRoomId": "room-combat-001",
+              "locked": false,
+              "hidden": false
+            },
+            {
+              "direction": "north",
+              "targetRoomId": "room-boss-001",
+              "locked": false,
+              "hidden": false
+            }
+          ],
+          "secrets": [
+            {
+              "id": "secret-001",
+              "type": "treasure",
+              "description": "A hidden compartment in the chest",
+              "discoveryMethod": "Search the chest carefully",
+              "reward": "Ancient Gold Coin"
+            }
+          ],
+          "visited": false,
+          "cleared": false
+        },
+        {
+          "id": "room-boss-001",
+          "type": "boss",
+          "coordinates": {
+            "x": 1,
+            "y": 2
+          },
+          "description": "A large chamber with high ceilings. The air feels heavy here.",
+          "connections": [
+            {
+              "direction": "south",
+              "targetRoomId": "room-treasure-001",
+              "locked": false,
+              "hidden": false
+            }
+          ],
+          "monsters": [
+            {
+              "id": "monster-boss-001",
+              "name": "Cave Troll",
+              "type": "boss",
+              "stats": {
+                "health": 100,
+                "attack": 15,
+                "defense": 10,
+                "speed": 5
+              },
+              "level": 2,
+              "description": "The guardian of the dark cavern",
+              "loot": ["troll hide", "boss key", "large health potion", "gold coins"]
+            }
+          ],
+          "story": {
+            "id": "story-001",
+            "title": "The Guardian's Purpose",
+            "description": "As you enter, the troll speaks: 'Many have tried to pass. None have succeeded.'",
+            "choices": ["Fight the troll", "Try to reason with it", "Search for another way"],
+            "consequences": ["Combat begins", "Troll considers your words", "Find hidden passage"]
+          },
+          "visited": false,
+          "cleared": false
+        }
+      ],
+      "createdAt": "2024-12-01T00:00:00.000Z",
+      "updatedAt": "2024-12-24T00:00:00.000Z"
+    },
+    {
+      "id": "dungeon-002",
+      "name": "Shadow Fortress",
+      "difficulty": "Medium",
+      "level": 5,
+      "size": {
+        "width": 8,
+        "height": 8
+      },
+      "description": "A challenging fortress filled with shadow creatures and complex puzzles",
+      "rooms": [
+        {
+          "id": "room-entrance-002",
+          "type": "entrance",
+          "coordinates": {
+            "x": 0,
+            "y": 0
+          },
+          "description": "The fortress gate creaks open, revealing a dark hallway.",
+          "connections": [
+            {
+              "direction": "north",
+              "targetRoomId": "room-puzzle-001",
+              "locked": false,
+              "hidden": false
+            }
+          ],
+          "lore": [
+            {
+              "id": "lore-001",
+              "title": "The Shadow Order",
+              "content": "This fortress was once home to the Shadow Order, a group of mages who studied dark magic.",
+              "discovered": false
+            }
+          ],
+          "visited": false,
+          "cleared": true
+        },
+        {
+          "id": "room-puzzle-001",
+          "type": "puzzle",
+          "coordinates": {
+            "x": 0,
+            "y": 1
+          },
+          "description": "A room with four pillars, each with a different colored gemstone.",
+          "connections": [
+            {
+              "direction": "south",
+              "targetRoomId": "room-entrance-002",
+              "locked": false,
+              "hidden": false
+            },
+            {
+              "direction": "north",
+              "targetRoomId": "room-boss-002",
+              "locked": true,
+              "hidden": false
+            }
+          ],
+          "puzzle": {
+            "id": "puzzle-001",
+            "type": "color_sequence",
+            "difficulty": "Medium",
+            "description": "Touch the gemstones in the correct order to unlock the door.",
+            "solution": "red, blue, green, yellow",
+            "reward": "Access to the boss chamber"
+          },
+          "visited": false,
+          "cleared": false
+        },
+        {
+          "id": "room-boss-002",
+          "type": "boss",
+          "coordinates": {
+            "x": 0,
+            "y": 2
+          },
+          "description": "The throne room of the Shadow Lord. Darkness swirls around the chamber.",
+          "connections": [
+            {
+              "direction": "south",
+              "targetRoomId": "room-puzzle-001",
+              "locked": false,
+              "hidden": false
+            }
+          ],
+          "monsters": [
+            {
+              "id": "monster-boss-002",
+              "name": "Shadow Lord",
+              "type": "boss",
+              "stats": {
+                "health": 250,
+                "attack": 30,
+                "defense": 20,
+                "speed": 12
+              },
+              "level": 6,
+              "description": "The master of the Shadow Fortress",
+              "loot": ["shadow cloak", "dark magic tome", "master key", "legendary weapon"]
+            }
+          ],
+          "visited": false,
+          "cleared": false
+        }
+      ],
+      "createdAt": "2024-12-05T00:00:00.000Z",
+      "updatedAt": "2024-12-24T00:00:00.000Z"
+    }
+  ]
+}

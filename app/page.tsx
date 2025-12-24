@@ -10,9 +10,14 @@ export default function Home() {
         </p>
         
         <div className="grid">
-          <a href="/api/hello" className="card">
-            <h2>API Example &rarr;</h2>
-            <p>Try out the sample API endpoint</p>
+          <a href="/dungeons" className="card">
+            <h2>Dungeon Manager &rarr;</h2>
+            <p>Create and manage dungeon configurations</p>
+          </a>
+
+          <a href="/api/dungeon" className="card">
+            <h2>API Endpoints &rarr;</h2>
+            <p>Access the dungeon CRUD API</p>
           </a>
           
           <a href="/about" className="card">
