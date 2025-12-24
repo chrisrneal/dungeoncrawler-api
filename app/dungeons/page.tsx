@@ -124,13 +124,46 @@ export default function DungeonsPage() {
       try {
         const text = await file.text();
         const data = JSON.parse(text);
-        const importedDungeons = data.dungeons || [data];
         
-        for (const dungeon of importedDungeons) {
-          // Generate new ID for imported dungeon
-          dungeon.id = DungeonHelpers.generateId();
+        // Try to detect and convert legacy format
+        let importedDungeons: Dungeon[] = [];
+        
+        // Check if it's legacy format (has numeric room IDs and different structure)
+        if (data.dungeons && Array.isArray(data.dungeons)) {
+          const firstDungeon = data.dungeons[0];
+          const firstRoom = firstDungeon?.rooms?.[0];
+          
+          // Detect legacy format by checking for numeric room ID and x/y coordinates
+          if (firstRoom && typeof firstRoom.id === 'number' && 
+              'x' in firstRoom && 'y' in firstRoom) {
+            // Convert legacy format
+            importedDungeons = DungeonHelpers.convertLegacyFormat(data);
+            if (importedDungeons.length > 0) {
+              setError('');
+              setSelectedDungeon(importedDungeons[0]);
+              setView('edit');
+              return;
+            }
+          } else {
+            // Current format
+            importedDungeons = data.dungeons;
+          }
+        } else if (data.id || data.name) {
+          // Single dungeon
+          importedDungeons = [data];
+        }
+        
+        if (importedDungeons.length > 0) {
+          // Generate new ID for imported dungeon if needed
+          const dungeon = importedDungeons[0];
+          if (!dungeon.id || typeof dungeon.id === 'number') {
+            dungeon.id = DungeonHelpers.generateId();
+          }
           setSelectedDungeon(dungeon);
           setView('edit');
+          setError('');
+        } else {
+          setError('No valid dungeons found in file.');
         }
       } catch (err) {
         setError('Failed to import dungeon. Invalid JSON format.');

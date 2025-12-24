@@ -412,4 +412,204 @@ export class DungeonHelpers {
       });
     }
   }
+
+  /**
+   * Converts legacy dungeon format to current schema
+   * Supports alternative JSON formats with different field structures
+   */
+  static convertLegacyFormat(legacyData: any): Dungeon[] {
+    const dungeons: Dungeon[] = [];
+    
+    if (!legacyData.dungeons || !Array.isArray(legacyData.dungeons)) {
+      return dungeons;
+    }
+
+    for (const legacyDungeon of legacyData.dungeons) {
+      // Create dungeon with new schema
+      const dungeon: Dungeon = {
+        id: this.generateId(),
+        name: `Level ${legacyDungeon.level || 1} Dungeon`,
+        difficulty: 'Medium',
+        level: legacyDungeon.level || 1,
+        size: {
+          width: legacyDungeon.size || 10,
+          height: legacyDungeon.size || 10
+        },
+        description: `A level ${legacyDungeon.level || 1} dungeon with ${legacyDungeon.rooms?.length || 0} rooms`,
+        rooms: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      // Convert rooms
+      if (legacyDungeon.rooms && Array.isArray(legacyDungeon.rooms)) {
+        const roomIdMap = new Map<number, string>(); // Map old numeric IDs to new string IDs
+
+        // First pass: create rooms and build ID map
+        for (const legacyRoom of legacyDungeon.rooms) {
+          const newRoomId = this.generateId();
+          roomIdMap.set(legacyRoom.id, newRoomId);
+
+          const room: Room = {
+            id: newRoomId,
+            type: this.mapLegacyRoomType(legacyRoom.type),
+            coordinates: {
+              x: legacyRoom.x || 0,
+              y: legacyRoom.y || 0
+            },
+            description: legacyRoom.description || '',
+            connections: [],
+            visited: false,
+            cleared: false
+          };
+
+          // Convert monsters
+          if (legacyRoom.monsters && Array.isArray(legacyRoom.monsters)) {
+            room.monsters = legacyRoom.monsters.map((legacyMonster: any) => ({
+              id: this.generateId(),
+              name: legacyMonster.name || 'Unknown Monster',
+              type: legacyMonster.specialAbility || 'enemy',
+              stats: {
+                health: legacyMonster.maxHealth || 50,
+                attack: legacyMonster.damage || 10,
+                defense: legacyMonster.defense || 5,
+                speed: legacyMonster.agility || 10
+              },
+              level: legacyMonster.level || dungeon.level,
+              description: `${legacyMonster.name} - Level ${legacyMonster.level}`,
+              loot: legacyMonster.goldValue ? [`${legacyMonster.goldValue} gold`] : []
+            }));
+          }
+
+          // Convert puzzle
+          if (legacyRoom.puzzle) {
+            room.puzzle = {
+              id: this.generateId(),
+              type: legacyRoom.puzzle.type || 'riddle',
+              difficulty: 'Medium',
+              description: legacyRoom.puzzle.description || legacyRoom.puzzle.question || '',
+              solution: legacyRoom.puzzle.answer,
+              reward: legacyRoom.puzzle.rewardGold ? `${legacyRoom.puzzle.rewardGold} gold` : undefined
+            };
+          }
+
+          // Convert story event
+          if (legacyRoom.storyEvent) {
+            room.story = {
+              id: this.generateId(),
+              title: legacyRoom.storyEvent.title || 'Story Event',
+              description: legacyRoom.storyEvent.description || '',
+              choices: legacyRoom.storyEvent.choices?.map((c: any) => c.text) || [],
+              consequences: legacyRoom.storyEvent.choices?.map((c: any) => c.outcome?.description) || []
+            };
+          }
+
+          // Convert lore entry
+          if (legacyRoom.loreEntry) {
+            room.lore = [{
+              id: this.generateId(),
+              title: legacyRoom.loreEntry.title || 'Lore Entry',
+              content: legacyRoom.loreEntry.text || '',
+              discovered: false
+            }];
+          }
+
+          // Convert secret
+          if (legacyRoom.secret) {
+            room.secrets = [{
+              id: this.generateId(),
+              type: 'treasure',
+              description: legacyRoom.secret.description || 'A hidden treasure',
+              reward: legacyRoom.secret.rewardGold ? `${legacyRoom.secret.rewardGold} gold` : undefined
+            }];
+          }
+
+          dungeon.rooms.push(room);
+        }
+
+        // Second pass: create connections based on legacy connections array
+        for (let i = 0; i < legacyDungeon.rooms.length; i++) {
+          const legacyRoom = legacyDungeon.rooms[i];
+          const room = dungeon.rooms[i];
+
+          if (legacyRoom.connections && Array.isArray(legacyRoom.connections)) {
+            for (const direction of legacyRoom.connections) {
+              // Find the target room based on direction and coordinates
+              const targetRoom = this.findRoomByDirection(
+                dungeon.rooms,
+                room.coordinates,
+                direction as Direction
+              );
+
+              if (targetRoom) {
+                // Add connection if it doesn't exist
+                if (!room.connections.find(conn => conn.targetRoomId === targetRoom.id)) {
+                  room.connections.push({
+                    direction: direction as Direction,
+                    targetRoomId: targetRoom.id,
+                    locked: false,
+                    hidden: false
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+
+      dungeons.push(dungeon);
+    }
+
+    return dungeons;
+  }
+
+  /**
+   * Maps legacy room type to current schema
+   */
+  private static mapLegacyRoomType(legacyType: string): RoomType {
+    const typeMap: Record<string, RoomType> = {
+      'entrance': 'entrance',
+      'boss': 'boss',
+      'treasure': 'treasure',
+      'puzzle': 'puzzle',
+      'combat': 'combat',
+      'rest': 'rest',
+      'trap': 'trap',
+      'empty': 'empty',
+      'lore': 'empty',
+      'story': 'empty'
+    };
+    return typeMap[legacyType] || 'empty';
+  }
+
+  /**
+   * Finds a room by direction from given coordinates
+   */
+  private static findRoomByDirection(
+    rooms: Room[],
+    fromCoords: Coordinates,
+    direction: Direction
+  ): Room | undefined {
+    let targetX = fromCoords.x;
+    let targetY = fromCoords.y;
+
+    switch (direction) {
+      case 'north':
+        targetY -= 1;
+        break;
+      case 'south':
+        targetY += 1;
+        break;
+      case 'east':
+        targetX += 1;
+        break;
+      case 'west':
+        targetX -= 1;
+        break;
+    }
+
+    return rooms.find(room => 
+      room.coordinates.x === targetX && room.coordinates.y === targetY
+    );
+  }
 }
