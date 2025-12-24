@@ -91,10 +91,10 @@ export async function POST(request: Request) {
     }
     
     // Validate path format
-    if (!endpoint.path.startsWith('/api/')) {
+    if (!endpoint.path.startsWith('/api/custom/')) {
       return NextResponse.json<ApiResponse<null>>({ 
         success: false,
-        error: 'Path must start with /api/'
+        error: 'Path must start with /api/custom/'
       }, { status: 400 });
     }
     
@@ -162,10 +162,10 @@ export async function PUT(request: Request) {
     }
     
     // Validate path format
-    if (!updatedEndpoint.path.startsWith('/api/')) {
+    if (!updatedEndpoint.path.startsWith('/api/custom/')) {
       return NextResponse.json<ApiResponse<null>>({ 
         success: false,
-        error: 'Path must start with /api/'
+        error: 'Path must start with /api/custom/'
       }, { status: 400 });
     }
     

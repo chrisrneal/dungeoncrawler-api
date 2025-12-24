@@ -43,6 +43,15 @@ export async function GET(
     // Await params as required by Next.js 15+
     const resolvedParams = await params;
     const pathSegments = resolvedParams.path || [];
+    
+    // Handle empty path segments
+    if (pathSegments.length === 0) {
+      return NextResponse.json<ApiResponse<null>>({ 
+        success: false,
+        error: 'Endpoint path is required'
+      }, { status: 404 });
+    }
+    
     const fullPath = `/api/custom/${pathSegments.join('/')}`;
     
     // Load endpoint configurations

@@ -1,25 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-
-interface Dungeon {
-  id: string;
-  name: string;
-  difficulty: string;
-  level: number;
-  description: string;
-}
-
-interface ApiEndpointConfig {
-  id: string;
-  name: string;
-  path: string;
-  dungeonId: string;
-  description?: string;
-  enabled: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-}
+import { Dungeon, ApiEndpointConfig } from '@/lib/api';
 
 export default function ApiEndpointsPage() {
   const [endpoints, setEndpoints] = useState<ApiEndpointConfig[]>([]);
