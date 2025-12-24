@@ -1,10 +1,10 @@
 # Dungeon Crawler API Schema Documentation
 
-**Version**: 1.1.0 (December 2024)
+**Version**: 1.2.0 (December 2024)
 
 ## Overview
 
-This document describes the complete data schema for the Dungeon Crawler API, including all entities, their relationships, validation rules, and usage patterns.
+This document describes the complete data schema for the Dungeon Crawler API, including all entities, their relationships, validation rules, and usage patterns. Version 1.2.0 introduces multi-floor dungeon support and visual map rendering.
 
 ## Table of Contents
 
@@ -19,7 +19,9 @@ This document describes the complete data schema for the Dungeon Crawler API, in
 3. [Type Definitions](#type-definitions)
 4. [Validation Rules](#validation-rules)
 5. [API Endpoints](#api-endpoints)
-6. [Import/Export Format](#importexport-format)
+6. [Multi-Floor Dungeons](#multi-floor-dungeons)
+7. [Map Visualization](#map-visualization)
+8. [Import/Export Format](#importexport-format)
 
 ---
 
@@ -38,12 +40,28 @@ interface Dungeon {
   size: {                        // Dungeon dimensions
     width: number;
     height: number;
-    depth?: number;              // Optional for multi-level dungeons
+    depth?: number;              // Number of floors in multi-floor dungeons
   };
   description: string;           // Narrative description
-  rooms: Room[];                 // Array of all rooms
+  rooms: Room[];                 // Array of all rooms (legacy format)
+  floors?: DungeonFloor[];       // Multi-floor support (recommended)
   createdAt?: string;            // ISO 8601 timestamp
   updatedAt?: string;            // ISO 8601 timestamp
+}
+```
+
+**Multi-Floor Support**: Dungeons can now be structured with multiple floors/levels. Use the `floors` array for multi-floor dungeons, or the `rooms` array for legacy single-floor dungeons. The system supports both formats for backward compatibility.
+
+### DungeonFloor
+
+Represents a single floor/level within a dungeon.
+
+```typescript
+interface DungeonFloor {
+  floorNumber: number;           // Floor number (1-based)
+  name: string;                  // Floor name (e.g., "Ground Floor", "Upper Level")
+  description: string;           // Floor description
+  rooms: Room[];                 // Rooms on this floor
 }
 ```
 
@@ -448,10 +466,11 @@ type RoomType = 'entrance' | 'boss' | 'treasure' | 'puzzle' | 'combat' | 'rest' 
 
 ### GET /api/dungeon
 
-Returns all dungeons or a specific dungeon.
+Returns all dungeons, a specific dungeon, or a specific floor within a dungeon.
 
 **Query Parameters:**
 - `id` (optional): Specific dungeon ID
+- `floor` (optional): Floor number to retrieve (requires `id` parameter)
 
 **Response (all dungeons):**
 ```json
@@ -468,6 +487,24 @@ Returns all dungeons or a specific dungeon.
   "data": { ... }
 }
 ```
+
+**Response (specific floor):**
+```json
+{
+  "success": true,
+  "data": {
+    "floorNumber": 1,
+    "name": "Ground Floor",
+    "description": "Main level",
+    "rooms": [...]
+  }
+}
+```
+
+**Example Requests:**
+- Get all dungeons: `GET /api/dungeon`
+- Get specific dungeon: `GET /api/dungeon?id=dungeon-001`
+- Get floor 2 of a dungeon: `GET /api/dungeon?id=dungeon-001&floor=2`
 
 ### POST /api/dungeon
 
@@ -535,6 +572,121 @@ Deletes a dungeon.
   "data": { "id": "dungeon-001" }
 }
 ```
+
+---
+
+## Multi-Floor Dungeons
+
+Dungeons now support multiple floors/levels, allowing for more complex vertical dungeon designs.
+
+### Creating Multi-Floor Dungeons
+
+**Option 1: Start with multi-floor structure**
+```typescript
+const dungeon = DungeonHelpers.createMultiFloorDungeon('Tower Dungeon', 3, 'Medium');
+// Creates a dungeon with 3 floors
+```
+
+**Option 2: Convert existing dungeon**
+```typescript
+const multiFloorDungeon = DungeonHelpers.convertToMultiFloor(existingDungeon);
+// Converts legacy single-floor format to multi-floor
+```
+
+### Working with Floors
+
+**Add a new floor:**
+- Use the "Add Floor" button in the UI
+- Each floor has its own name, description, and room collection
+
+**Switch between floors:**
+- Use floor tabs to navigate between different levels
+- Each floor maintains its own room layout
+
+**Access floor data via API:**
+```bash
+# Get all floors
+GET /api/dungeon?id=dungeon-001
+
+# Get specific floor
+GET /api/dungeon?id=dungeon-001&floor=2
+```
+
+### Floor Structure
+
+```typescript
+{
+  "id": "dungeon-001",
+  "name": "The Tower",
+  "floors": [
+    {
+      "floorNumber": 1,
+      "name": "Ground Floor",
+      "description": "Entry level",
+      "rooms": [...]
+    },
+    {
+      "floorNumber": 2,
+      "name": "Upper Level",
+      "description": "Second floor",
+      "rooms": [...]
+    }
+  ],
+  "size": {
+    "width": 10,
+    "height": 10,
+    "depth": 2  // Number of floors
+  }
+}
+```
+
+### Backward Compatibility
+
+Legacy dungeons using the `rooms` array directly are still supported. The system automatically detects which format is being used:
+- Multi-floor: Uses `floors` array (recommended)
+- Legacy: Uses `rooms` array (backward compatible)
+
+---
+
+## Map Visualization
+
+The dungeon editor now includes a visual map that renders the dungeon layout in 2D.
+
+### Features
+
+- **Visual Room Display**: Each room is color-coded by type with emoji icons
+- **Connection Lines**: Shows pathways between rooms
+- **Interactive**: Click on rooms to edit them
+- **Legend**: Displays all room types and their colors
+- **Coordinate Grid**: Shows X/Y coordinates for precise positioning
+- **Floor Support**: Displays only the current floor's rooms
+
+### Room Type Colors
+
+| Type | Color | Icon |
+|------|-------|------|
+| Entrance | Green | 🚪 |
+| Boss | Red | 👹 |
+| Treasure | Yellow | 💰 |
+| Puzzle | Purple | 🧩 |
+| Combat | Orange | ⚔️ |
+| Rest | Blue | 🛏️ |
+| Trap | Dark Red | ⚠️ |
+| Empty | Gray | · |
+
+### Using the Map
+
+1. **View Mode**: Toggle map visibility with "Show/Hide Map" button
+2. **Navigate**: Switch between floors to see each level's layout
+3. **Interact**: Click on rooms in the map to edit them
+4. **Plan**: Use the visual representation to plan dungeon flow
+
+### Map Controls
+
+- **Hide/Show Map**: Toggle map visibility
+- **Floor Tabs**: Switch between floors to view different levels
+- **Room Hover**: Hover over rooms for scale animation
+- **Connection Lines**: Visual indicators show locked (red) vs open (gray) passages
 
 ---
 

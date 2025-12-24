@@ -32,12 +32,15 @@ async function saveDungeons(dungeons: Dungeon[]): Promise<void> {
 /**
  * GET /api/dungeon
  * Returns all dungeons or a specific dungeon by ID
- * Query params: ?id=<dungeonId> for specific dungeon
+ * Query params: 
+ *   ?id=<dungeonId> for specific dungeon
+ *   ?floor=<floorNumber> to get rooms for a specific floor (requires id)
  */
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const dungeonId = searchParams.get('id');
+    const floorNumber = searchParams.get('floor');
     
     const dungeons = await loadDungeons();
     
@@ -50,6 +53,43 @@ export async function GET(request: Request) {
           error: 'Dungeon not found'
         }, { status: 404 });
       }
+      
+      // If floor number is specified, return only that floor's data
+      if (floorNumber) {
+        const floor = parseInt(floorNumber);
+        if (dungeon.floors && dungeon.floors.length > 0) {
+          const dungeonFloor = dungeon.floors.find(f => f.floorNumber === floor);
+          if (!dungeonFloor) {
+            return NextResponse.json<ApiResponse<null>>({ 
+              success: false,
+              error: `Floor ${floor} not found`
+            }, { status: 404 });
+          }
+          return NextResponse.json<ApiResponse<any>>({ 
+            success: true,
+            data: dungeonFloor
+          });
+        } else {
+          // Legacy format: return all rooms if floor is 1
+          if (floor === 1) {
+            return NextResponse.json<ApiResponse<any>>({ 
+              success: true,
+              data: {
+                floorNumber: 1,
+                name: 'Ground Floor',
+                description: '',
+                rooms: dungeon.rooms || []
+              }
+            });
+          } else {
+            return NextResponse.json<ApiResponse<null>>({ 
+              success: false,
+              error: 'This dungeon does not have multiple floors'
+            }, { status: 404 });
+          }
+        }
+      }
+      
       return NextResponse.json<ApiResponse<Dungeon>>({ 
         success: true,
         data: dungeon

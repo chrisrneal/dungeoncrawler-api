@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Dungeon, Room, Monster, DungeonHelpers, Direction, RoomType, DifficultyLevel } from '@/lib/api';
+import { Dungeon, Room, Monster, DungeonHelpers, Direction, RoomType, DifficultyLevel, DungeonFloor } from '@/lib/api';
+import DungeonMap from '@/app/components/DungeonMap';
 
 export default function DungeonsPage() {
   const [dungeons, setDungeons] = useState<Dungeon[]>([]);
@@ -11,6 +12,8 @@ export default function DungeonsPage() {
   const [error, setError] = useState<string>('');
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [view, setView] = useState<'list' | 'edit' | 'room'>('list');
+  const [currentFloor, setCurrentFloor] = useState<number>(1);
+  const [showMap, setShowMap] = useState<boolean>(true);
 
   // Load dungeons on component mount
   useEffect(() => {
@@ -181,7 +184,7 @@ export default function DungeonsPage() {
   const addRoom = () => {
     if (!selectedDungeon) return;
     
-    const newRoom = DungeonHelpers.createRoom('empty', { x: 0, y: 0 }, '');
+    const newRoom = DungeonHelpers.createRoom('empty', { x: 0, y: 0, z: currentFloor }, '');
     setEditingRoom(newRoom);
     setView('room');
   };
@@ -189,11 +192,31 @@ export default function DungeonsPage() {
   const saveRoom = () => {
     if (!editingRoom || !selectedDungeon) return;
     
-    const existingIndex = selectedDungeon.rooms.findIndex(r => r.id === editingRoom.id);
-    if (existingIndex >= 0) {
-      selectedDungeon.rooms[existingIndex] = editingRoom;
+    // Ensure room has z-coordinate matching current floor
+    if (!editingRoom.coordinates.z) {
+      editingRoom.coordinates.z = currentFloor;
+    }
+    
+    // Handle multi-floor or legacy structure
+    if (selectedDungeon.floors && selectedDungeon.floors.length > 0) {
+      // Multi-floor structure
+      const floor = selectedDungeon.floors.find(f => f.floorNumber === currentFloor);
+      if (floor) {
+        const existingIndex = floor.rooms.findIndex(r => r.id === editingRoom.id);
+        if (existingIndex >= 0) {
+          floor.rooms[existingIndex] = editingRoom;
+        } else {
+          floor.rooms.push(editingRoom);
+        }
+      }
     } else {
-      selectedDungeon.rooms.push(editingRoom);
+      // Legacy structure
+      const existingIndex = selectedDungeon.rooms.findIndex(r => r.id === editingRoom.id);
+      if (existingIndex >= 0) {
+        selectedDungeon.rooms[existingIndex] = editingRoom;
+      } else {
+        selectedDungeon.rooms.push(editingRoom);
+      }
     }
     
     setSelectedDungeon({ ...selectedDungeon });
@@ -205,8 +228,70 @@ export default function DungeonsPage() {
     if (!selectedDungeon) return;
     if (!confirm('Are you sure you want to delete this room?')) return;
     
-    selectedDungeon.rooms = selectedDungeon.rooms.filter(r => r.id !== roomId);
+    // Handle multi-floor or legacy structure
+    if (selectedDungeon.floors && selectedDungeon.floors.length > 0) {
+      const floor = selectedDungeon.floors.find(f => f.floorNumber === currentFloor);
+      if (floor) {
+        floor.rooms = floor.rooms.filter(r => r.id !== roomId);
+      }
+    } else {
+      selectedDungeon.rooms = selectedDungeon.rooms.filter(r => r.id !== roomId);
+    }
+    
     setSelectedDungeon({ ...selectedDungeon });
+  };
+
+  const addFloor = () => {
+    if (!selectedDungeon) return;
+    
+    // Convert to multi-floor if needed
+    if (!selectedDungeon.floors || selectedDungeon.floors.length === 0) {
+      selectedDungeon.floors = [{
+        floorNumber: 1,
+        name: 'Ground Floor',
+        description: 'Main level',
+        rooms: selectedDungeon.rooms || []
+      }];
+    }
+    
+    const newFloorNumber = selectedDungeon.floors.length + 1;
+    const newFloor = DungeonHelpers.createEmptyFloor(newFloorNumber);
+    selectedDungeon.floors.push(newFloor);
+    selectedDungeon.size.depth = selectedDungeon.floors.length;
+    
+    setSelectedDungeon({ ...selectedDungeon });
+    setCurrentFloor(newFloorNumber);
+  };
+
+  const deleteFloor = (floorNumber: number) => {
+    if (!selectedDungeon || !selectedDungeon.floors) return;
+    if (selectedDungeon.floors.length <= 1) {
+      alert('Cannot delete the last floor');
+      return;
+    }
+    if (!confirm(`Are you sure you want to delete floor ${floorNumber}?`)) return;
+    
+    selectedDungeon.floors = selectedDungeon.floors.filter(f => f.floorNumber !== floorNumber);
+    selectedDungeon.size.depth = selectedDungeon.floors.length;
+    
+    // Adjust current floor if necessary
+    if (currentFloor === floorNumber) {
+      setCurrentFloor(1);
+    }
+    
+    setSelectedDungeon({ ...selectedDungeon });
+  };
+
+  const getCurrentFloorRooms = (): Room[] => {
+    if (!selectedDungeon) return [];
+    
+    if (selectedDungeon.floors && selectedDungeon.floors.length > 0) {
+      const floor = selectedDungeon.floors.find(f => f.floorNumber === currentFloor);
+      return floor?.rooms || [];
+    }
+    
+    // Legacy: return all rooms
+    return selectedDungeon.rooms || [];
   };
 
   // Render dungeon list view
@@ -239,7 +324,10 @@ export default function DungeonsPage() {
                   {dungeon.difficulty}
                 </span>
                 <span>Level {dungeon.level}</span>
-                <span>{dungeon.rooms.length} rooms</span>
+                <span>{DungeonHelpers.getAllRooms(dungeon).length} rooms</span>
+                {dungeon.floors && dungeon.floors.length > 0 && (
+                  <span>{dungeon.floors.length} floors</span>
+                )}
               </div>
               <div className="card-actions">
                 <button 
@@ -370,16 +458,107 @@ export default function DungeonsPage() {
           </div>
         </div>
 
+        {/* Floor Management Section */}
         <div className="form-section">
           <div className="section-header">
-            <h2>Rooms ({selectedDungeon.rooms.length})</h2>
+            <h2>Floors</h2>
+            <button onClick={addFloor} className="btn-small btn-primary">
+              Add Floor
+            </button>
+          </div>
+          
+          {selectedDungeon.floors && selectedDungeon.floors.length > 0 ? (
+            <div>
+              <div className="floor-tabs">
+                {selectedDungeon.floors.map(floor => (
+                  <button
+                    key={floor.floorNumber}
+                    onClick={() => setCurrentFloor(floor.floorNumber)}
+                    className={`floor-tab ${currentFloor === floor.floorNumber ? 'active' : ''}`}
+                  >
+                    Floor {floor.floorNumber}: {floor.name}
+                    {selectedDungeon.floors!.length > 1 && (
+                      <span 
+                        onClick={(e) => { e.stopPropagation(); deleteFloor(floor.floorNumber); }}
+                        className="delete-tab"
+                        title="Delete floor"
+                      >
+                        ×
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              
+              {selectedDungeon.floors.find(f => f.floorNumber === currentFloor) && (
+                <div className="floor-info">
+                  <div className="form-field">
+                    <label>Floor Name</label>
+                    <input
+                      type="text"
+                      value={selectedDungeon.floors.find(f => f.floorNumber === currentFloor)?.name || ''}
+                      onChange={e => {
+                        const floor = selectedDungeon.floors!.find(f => f.floorNumber === currentFloor);
+                        if (floor) {
+                          floor.name = e.target.value;
+                          setSelectedDungeon({ ...selectedDungeon });
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="form-field">
+                    <label>Floor Description</label>
+                    <textarea
+                      value={selectedDungeon.floors.find(f => f.floorNumber === currentFloor)?.description || ''}
+                      onChange={e => {
+                        const floor = selectedDungeon.floors!.find(f => f.floorNumber === currentFloor);
+                        if (floor) {
+                          floor.description = e.target.value;
+                          setSelectedDungeon({ ...selectedDungeon });
+                        }
+                      }}
+                      rows={2}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="info-box">
+              <p>This dungeon uses legacy single-floor format. Click "Add Floor" to enable multi-floor support.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Map Visualization */}
+        <div className="form-section">
+          <div className="section-header">
+            <h2>Dungeon Map</h2>
+            <button onClick={() => setShowMap(!showMap)} className="btn-small btn-secondary">
+              {showMap ? 'Hide Map' : 'Show Map'}
+            </button>
+          </div>
+          
+          {showMap && (
+            <DungeonMap
+              rooms={getCurrentFloorRooms()}
+              onRoomClick={(room) => { setEditingRoom(room); setView('room'); }}
+              selectedRoomId={editingRoom?.id}
+              gridSize={selectedDungeon.size}
+            />
+          )}
+        </div>
+
+        <div className="form-section">
+          <div className="section-header">
+            <h2>Rooms ({getCurrentFloorRooms().length})</h2>
             <button onClick={addRoom} className="btn-small btn-primary">
               Add Room
             </button>
           </div>
 
           <div className="room-list">
-            {selectedDungeon.rooms.map(room => (
+            {getCurrentFloorRooms().map(room => (
               <div key={room.id} className="room-card">
                 <div className="room-info">
                   <h4>
@@ -858,6 +1037,67 @@ export default function DungeonsPage() {
 
         .monster-card {
           margin-bottom: 1rem;
+        }
+
+        .floor-tabs {
+          display: flex;
+          gap: 0.5rem;
+          margin-bottom: 1rem;
+          flex-wrap: wrap;
+        }
+
+        .floor-tab {
+          padding: 0.5rem 1rem;
+          background: #2d3748;
+          border: 2px solid #4a5568;
+          border-radius: 4px;
+          color: white;
+          cursor: pointer;
+          transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .floor-tab:hover {
+          background: #4a5568;
+        }
+
+        .floor-tab.active {
+          background: #0070f3;
+          border-color: #0070f3;
+        }
+
+        .delete-tab {
+          margin-left: 0.5rem;
+          padding: 0 0.3rem;
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 3px;
+          font-size: 1.2rem;
+          line-height: 1;
+        }
+
+        .delete-tab:hover {
+          background: rgba(255, 0, 0, 0.5);
+        }
+
+        .floor-info {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+          margin-top: 1rem;
+        }
+
+        .info-box {
+          padding: 1rem;
+          background: #2d3748;
+          border-left: 4px solid #0070f3;
+          border-radius: 4px;
+          color: #cbd5e0;
+        }
+
+        .info-box p {
+          margin: 0;
         }
       `}</style>
     </div>
