@@ -476,7 +476,7 @@ export class DungeonHelpers {
                 speed: legacyMonster.agility || 10
               },
               level: legacyMonster.level || dungeon.level,
-              description: `${legacyMonster.name} - Level ${legacyMonster.level}`,
+              description: `${legacyMonster.name || 'Unknown Monster'} - Level ${legacyMonster.level || dungeon.level}`,
               loot: legacyMonster.goldValue ? [`${legacyMonster.goldValue} gold`] : []
             }));
           }
@@ -499,8 +499,8 @@ export class DungeonHelpers {
               id: this.generateId(),
               title: legacyRoom.storyEvent.title || 'Story Event',
               description: legacyRoom.storyEvent.description || '',
-              choices: legacyRoom.storyEvent.choices?.map((c: any) => c.text) || [],
-              consequences: legacyRoom.storyEvent.choices?.map((c: any) => c.outcome?.description) || []
+              choices: legacyRoom.storyEvent.choices?.map((c: any) => c?.text || '') || [],
+              consequences: legacyRoom.storyEvent.choices?.map((c: any) => c?.outcome?.description || '') || []
             };
           }
 

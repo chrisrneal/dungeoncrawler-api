@@ -154,7 +154,8 @@ export default function DungeonsPage() {
         }
         
         if (importedDungeons.length > 0) {
-          // Generate new ID for imported dungeon if needed
+          // Process first dungeon only - open it for editing
+          // Note: If file contains multiple dungeons, only the first one is loaded
           const dungeon = importedDungeons[0];
           if (!dungeon.id || typeof dungeon.id === 'number') {
             dungeon.id = DungeonHelpers.generateId();
@@ -162,6 +163,11 @@ export default function DungeonsPage() {
           setSelectedDungeon(dungeon);
           setView('edit');
           setError('');
+          
+          // Notify user if multiple dungeons were in the file
+          if (importedDungeons.length > 1) {
+            console.warn(`File contained ${importedDungeons.length} dungeons. Only the first one was imported.`);
+          }
         } else {
           setError('No valid dungeons found in file.');
         }
