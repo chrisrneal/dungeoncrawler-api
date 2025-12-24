@@ -136,7 +136,9 @@ export function getSupabaseClient(): SupabaseClient {
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Missing Supabase environment variables. Please check your .env.local file.');
+    // During build time or when env vars are not set, throw a descriptive error
+    // that will be caught by the storage adapter initialization
+    throw new Error('Supabase environment variables not configured');
   }
 
   return createClient(supabaseUrl, supabaseKey, {

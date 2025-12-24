@@ -2,31 +2,147 @@ import { NextResponse } from 'next/server';
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { Dungeon, DungeonValidator, ApiResponse } from '@/lib/api';
+import { SupabaseDatabase } from '@/lib/supabase';
 
-// Path to dungeon data file
+// Storage mode from environment
+const STORAGE_MODE = process.env.STORAGE_MODE || 'supabase';
+
+// Path to dungeon data file (for file storage mode)
 const DATA_FILE_PATH = join(process.cwd(), 'public', 'data', 'dungeon-data.json');
 
-// Helper to load dungeons from file
-async function loadDungeons(): Promise<Dungeon[]> {
-  try {
-    const fileContents = await readFile(DATA_FILE_PATH, 'utf-8');
-    const data = JSON.parse(fileContents);
-    return data.dungeons || [];
-  } catch (error) {
-    console.error('Error loading dungeons:', error);
-    return [];
+// ============================================================================
+// Storage Abstraction Layer
+// ============================================================================
+
+interface StorageAdapter {
+  getAllDungeons(): Promise<Dungeon[]>;
+  getDungeonById(id: string): Promise<Dungeon | null>;
+  createDungeon(dungeon: Dungeon): Promise<Dungeon>;
+  updateDungeon(id: string, dungeon: Dungeon): Promise<Dungeon>;
+  deleteDungeon(id: string): Promise<void>;
+}
+
+/**
+ * File-based storage adapter (legacy)
+ */
+class FileStorageAdapter implements StorageAdapter {
+  async getAllDungeons(): Promise<Dungeon[]> {
+    try {
+      const fileContents = await readFile(DATA_FILE_PATH, 'utf-8');
+      const data = JSON.parse(fileContents);
+      return data.dungeons || [];
+    } catch (error) {
+      console.error('Error loading dungeons:', error);
+      return [];
+    }
+  }
+
+  async getDungeonById(id: string): Promise<Dungeon | null> {
+    const dungeons = await this.getAllDungeons();
+    return dungeons.find(d => d.id === id) || null;
+  }
+
+  async createDungeon(dungeon: Dungeon): Promise<Dungeon> {
+    const dungeons = await this.getAllDungeons();
+    dungeons.push(dungeon);
+    await this.saveDungeons(dungeons);
+    return dungeon;
+  }
+
+  async updateDungeon(id: string, dungeon: Dungeon): Promise<Dungeon> {
+    const dungeons = await this.getAllDungeons();
+    const index = dungeons.findIndex(d => d.id === id);
+    
+    if (index === -1) {
+      throw new Error('Dungeon not found');
+    }
+    
+    dungeons[index] = dungeon;
+    await this.saveDungeons(dungeons);
+    return dungeon;
+  }
+
+  async deleteDungeon(id: string): Promise<void> {
+    const dungeons = await this.getAllDungeons();
+    const filtered = dungeons.filter(d => d.id !== id);
+    
+    if (filtered.length === dungeons.length) {
+      throw new Error('Dungeon not found');
+    }
+    
+    await this.saveDungeons(filtered);
+  }
+
+  private async saveDungeons(dungeons: Dungeon[]): Promise<void> {
+    try {
+      const data = { dungeons };
+      await writeFile(DATA_FILE_PATH, JSON.stringify(data, null, 2), 'utf-8');
+    } catch (error) {
+      console.error('Error saving dungeons:', error);
+      throw new Error('Failed to save dungeons');
+    }
   }
 }
 
-// Helper to save dungeons to file
-async function saveDungeons(dungeons: Dungeon[]): Promise<void> {
-  try {
-    const data = { dungeons };
-    await writeFile(DATA_FILE_PATH, JSON.stringify(data, null, 2), 'utf-8');
-  } catch (error) {
-    console.error('Error saving dungeons:', error);
-    throw new Error('Failed to save dungeons');
+/**
+ * Supabase storage adapter
+ */
+class SupabaseStorageAdapter implements StorageAdapter {
+  private db: SupabaseDatabase;
+
+  constructor() {
+    this.db = new SupabaseDatabase();
   }
+
+  async getAllDungeons(): Promise<Dungeon[]> {
+    return await this.db.getAllDungeons();
+  }
+
+  async getDungeonById(id: string): Promise<Dungeon | null> {
+    return await this.db.getDungeonById(id);
+  }
+
+  async createDungeon(dungeon: Dungeon): Promise<Dungeon> {
+    return await this.db.createDungeon(dungeon);
+  }
+
+  async updateDungeon(id: string, dungeon: Dungeon): Promise<Dungeon> {
+    return await this.db.updateDungeon(id, dungeon);
+  }
+
+  async deleteDungeon(id: string): Promise<void> {
+    await this.db.deleteDungeon(id);
+  }
+}
+
+/**
+ * Get the appropriate storage adapter based on environment configuration
+ */
+function getStorageAdapter(): StorageAdapter {
+  if (STORAGE_MODE === 'file') {
+    console.log('Using file-based storage');
+    return new FileStorageAdapter();
+  }
+  
+  // Try to use Supabase, but fall back to file storage if env vars not set
+  try {
+    console.log('Attempting to use Supabase storage');
+    return new SupabaseStorageAdapter();
+  } catch (error) {
+    console.warn('Supabase not configured, falling back to file storage:', error);
+    console.warn('To use Supabase, set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY');
+    return new FileStorageAdapter();
+  }
+}
+
+// Initialize storage adapter
+let storage: StorageAdapter;
+try {
+  storage = getStorageAdapter();
+} catch (error) {
+  console.error('Failed to initialize storage adapter:', error);
+  // Fallback to file storage
+  storage = new FileStorageAdapter();
 }
 
 /**
@@ -42,11 +158,9 @@ export async function GET(request: Request) {
     const dungeonId = searchParams.get('id');
     const floorNumber = searchParams.get('floor');
     
-    const dungeons = await loadDungeons();
-    
     if (dungeonId) {
       // Return specific dungeon
-      const dungeon = dungeons.find(d => d.id === dungeonId);
+      const dungeon = await storage.getDungeonById(dungeonId);
       if (!dungeon) {
         return NextResponse.json<ApiResponse<null>>({ 
           success: false,
@@ -97,11 +211,13 @@ export async function GET(request: Request) {
     }
     
     // Return all dungeons
+    const dungeons = await storage.getAllDungeons();
     return NextResponse.json<ApiResponse<Dungeon[]>>({ 
       success: true,
       data: dungeons
     });
   } catch (error) {
+    console.error('GET /api/dungeon error:', error);
     return NextResponse.json<ApiResponse<null>>({ 
       success: false,
       error: 'Failed to load dungeons'
@@ -132,19 +248,18 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
     
-    // Load existing dungeons and add new one
-    const dungeons = await loadDungeons();
-    dungeons.push(dungeon);
-    await saveDungeons(dungeons);
+    // Create dungeon using storage adapter
+    const createdDungeon = await storage.createDungeon(dungeon);
     
     return NextResponse.json<ApiResponse<Dungeon>>({ 
       success: true,
-      data: dungeon
+      data: createdDungeon
     }, { status: 201 });
   } catch (error) {
+    console.error('POST /api/dungeon error:', error);
     return NextResponse.json<ApiResponse<null>>({ 
       success: false,
-      error: 'Failed to create dungeon'
+      error: error instanceof Error ? error.message : 'Failed to create dungeon'
     }, { status: 400 });
   }
 }
@@ -183,29 +298,20 @@ export async function PUT(request: Request) {
       }, { status: 400 });
     }
     
-    // Load dungeons and update
-    const dungeons = await loadDungeons();
-    const index = dungeons.findIndex(d => d.id === dungeonId);
-    
-    if (index === -1) {
-      return NextResponse.json<ApiResponse<null>>({ 
-        success: false,
-        error: 'Dungeon not found'
-      }, { status: 404 });
-    }
-    
-    dungeons[index] = updatedDungeon;
-    await saveDungeons(dungeons);
+    // Update dungeon using storage adapter
+    const result = await storage.updateDungeon(dungeonId, updatedDungeon);
     
     return NextResponse.json<ApiResponse<Dungeon>>({ 
       success: true,
-      data: updatedDungeon
+      data: result
     });
   } catch (error) {
+    console.error('PUT /api/dungeon error:', error);
+    const statusCode = error instanceof Error && error.message === 'Dungeon not found' ? 404 : 400;
     return NextResponse.json<ApiResponse<null>>({ 
       success: false,
-      error: 'Failed to update dungeon'
-    }, { status: 400 });
+      error: error instanceof Error ? error.message : 'Failed to update dungeon'
+    }, { status: statusCode });
   }
 }
 
@@ -226,27 +332,19 @@ export async function DELETE(request: Request) {
       }, { status: 400 });
     }
     
-    // Load dungeons and filter out the one to delete
-    const dungeons = await loadDungeons();
-    const filtered = dungeons.filter(d => d.id !== dungeonId);
-    
-    if (filtered.length === dungeons.length) {
-      return NextResponse.json<ApiResponse<null>>({ 
-        success: false,
-        error: 'Dungeon not found'
-      }, { status: 404 });
-    }
-    
-    await saveDungeons(filtered);
+    // Delete dungeon using storage adapter
+    await storage.deleteDungeon(dungeonId);
     
     return NextResponse.json<ApiResponse<{ id: string }>>({ 
       success: true,
       data: { id: dungeonId }
     });
   } catch (error) {
+    console.error('DELETE /api/dungeon error:', error);
+    const statusCode = error instanceof Error && error.message === 'Dungeon not found' ? 404 : 400;
     return NextResponse.json<ApiResponse<null>>({ 
       success: false,
-      error: 'Failed to delete dungeon'
-    }, { status: 400 });
+      error: error instanceof Error ? error.message : 'Failed to delete dungeon'
+    }, { status: statusCode });
   }
 }
