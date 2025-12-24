@@ -7,6 +7,7 @@ A Next.js application for managing dungeon crawler games, providing both a compr
 - 🚀 Built with Next.js 16 and TypeScript
 - 🎨 Full-featured CRUD interface for dungeon management
 - 📡 RESTful API endpoints with validation
+- 🔧 Custom API endpoint configuration system
 - 🔒 Type-safe with comprehensive TypeScript interfaces
 - ✅ Schema validation with detailed error reporting
 - 📥 Import/Export dungeons in JSON format
@@ -48,8 +49,15 @@ dungeoncrawler-api/
 │   ├── api/             # API routes
 │   │   ├── hello/
 │   │   │   └── route.ts # GET /api/hello
-│   │   └── dungeon/
-│   │       └── route.ts # Full CRUD API for dungeons
+│   │   ├── dungeon/
+│   │   │   └── route.ts # Full CRUD API for dungeons
+│   │   ├── endpoints/
+│   │   │   └── route.ts # Endpoint configuration API
+│   │   └── custom/
+│   │       └── [[...path]]/
+│   │           └── route.ts # Dynamic custom endpoints
+│   ├── api-endpoints/   # API endpoint configuration UI
+│   │   └── page.tsx
 │   ├── dungeons/        # Dungeon management UI
 │   │   └── page.tsx     # CRUD interface
 │   ├── layout.tsx       # Root layout
@@ -59,7 +67,8 @@ dungeoncrawler-api/
 │   └── api.ts           # TypeScript interfaces and validation
 ├── public/
 │   └── data/
-│       └── dungeon-data.json  # Example dungeon data
+│       ├── dungeon-data.json     # Example dungeon data
+│       └── endpoint-config.json  # Endpoint configurations
 ├── API_SCHEMA.md        # Complete API documentation
 ├── next.config.ts       # Next.js configuration
 ├── tsconfig.json        # TypeScript configuration
@@ -98,6 +107,56 @@ The system enforces these validation rules:
 
 - **Export**: Click "Export" on any dungeon to download as JSON
 - **Import**: Click "Import Dungeon" and select a JSON file matching the schema
+
+## Custom API Endpoints
+
+### Configure Custom Endpoints
+
+Navigate to [http://localhost:3000/api-endpoints](http://localhost:3000/api-endpoints) to configure custom API endpoints.
+
+### Features
+
+- **Create Custom Endpoints**: Define custom API paths (e.g., `/api/custom/my-dungeon`)
+- **Assign Dungeons**: Select which dungeon data to serve from each endpoint
+- **Enable/Disable**: Toggle endpoints on/off without deleting them
+- **Test Endpoints**: Built-in testing with JSON response viewer
+- **Manage Configurations**: Full CRUD operations for endpoint configurations
+
+### How to Use
+
+1. Click "Create New Endpoint"
+2. Enter a name for your endpoint (e.g., "Dark Cavern API")
+3. Specify the API path (must start with `/api/custom/`)
+4. Select which dungeon to serve from this endpoint
+5. Optionally add a description
+6. Click "Create" to save
+
+Once created, you can:
+- **Test** the endpoint directly in the UI to see the JSON response
+- **Access** the endpoint via HTTP GET requests (e.g., `curl http://localhost:3000/api/custom/dark-cavern`)
+- **Edit** endpoint configuration
+- **Delete** endpoints you no longer need
+
+### Example
+
+Create an endpoint at `/api/custom/dark-cavern` that serves "The Dark Cavern" dungeon:
+
+```bash
+# Access the custom endpoint
+curl http://localhost:3000/api/custom/dark-cavern
+
+# Response
+{
+  "success": true,
+  "data": {
+    "id": "dungeon-001",
+    "name": "The Dark Cavern",
+    "difficulty": "Easy",
+    "level": 1,
+    ...
+  }
+}
+```
 
 ## API Endpoints
 
@@ -191,6 +250,55 @@ Deletes a dungeon.
 }
 ```
 
+## Endpoint Configuration API
+
+### GET /api/endpoints
+
+Returns all endpoint configurations or a specific one by ID.
+
+**Query Parameters:**
+- `id` (optional): Endpoint ID for single endpoint retrieval
+
+### POST /api/endpoints
+
+Creates a new endpoint configuration.
+
+**Request Body:**
+```json
+{
+  "id": "endpoint-001",
+  "name": "Dark Cavern API",
+  "path": "/api/custom/dark-cavern",
+  "dungeonId": "dungeon-001",
+  "description": "Custom endpoint for The Dark Cavern",
+  "enabled": true
+}
+```
+
+### PUT /api/endpoints
+
+Updates an existing endpoint configuration.
+
+**Query Parameters:**
+- `id` (required): Endpoint ID to update
+
+### DELETE /api/endpoints
+
+Deletes an endpoint configuration.
+
+**Query Parameters:**
+- `id` (required): Endpoint ID to delete
+
+### GET /api/custom/[...path]
+
+Dynamic route that serves dungeon data based on configured endpoints.
+
+**Example:**
+```bash
+GET /api/custom/dark-cavern
+# Returns the dungeon assigned to this path
+```
+
 ## Schema Documentation
 
 For complete API schema documentation including all data structures, validation rules, and usage examples, see [API_SCHEMA.md](API_SCHEMA.md).
@@ -204,6 +312,7 @@ For complete API schema documentation including all data structures, validation 
 - **Story Event**: Narrative moment with choices
 - **Lore**: Background information
 - **Secret**: Hidden content or rewards
+- **ApiEndpointConfig**: Custom endpoint configuration with path and dungeon mapping
 
 ## TypeScript Interfaces
 
@@ -223,6 +332,7 @@ const validation = DungeonValidator.validateDungeon(dungeon);
 
 - **/** - Home page with navigation
 - **/dungeons** - Full CRUD interface for dungeon management
+- **/api-endpoints** - API endpoint configuration manager
 - **/about** - Information about the application and available APIs
 
 ## Technology Stack
