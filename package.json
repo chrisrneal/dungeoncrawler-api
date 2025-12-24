@@ -1,7 +1,7 @@
 {
   "name": "dungeoncrawler-api",
   "version": "1.0.0",
-  "description": "dungon crawler management app",
+  "description": "dungeon crawler management app",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
