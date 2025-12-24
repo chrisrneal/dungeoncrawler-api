@@ -67,13 +67,24 @@ export interface StoryEvent {
 }
 
 /**
- * Lore entry
+ * Lore entry (internal model)
  */
 export interface Lore {
   id: string;
   title: string;
   content: string;
   discovered?: boolean;
+}
+
+/**
+ * API Lore Entry
+ * Represents a lore fragment or story element from the API
+ */
+export interface APILoreEntry {
+  title: string;
+  type: 'journal' | 'inscription' | 'fragment' | 'document';
+  text: string;
+  category: 'history' | 'warning' | 'magic' | 'personal' | 'mundane' | 'mythology' | 'exploration';
 }
 
 /**
@@ -141,6 +152,85 @@ export interface Dungeon {
   rooms: Room[];
   createdAt?: string;
   updatedAt?: string;
+}
+
+// ============================================================================
+// API Response Types
+// These types represent the data format returned by the API endpoints
+// ============================================================================
+
+/**
+ * API Monster Data
+ * Monster information as returned by the API
+ */
+export interface APIMonsterData {
+  name: string;
+  level: number;
+  maxHealth: number;
+  damage: number;
+  defense: number;
+  agility: number;
+  specialAbility?: string;
+  goldValue: number;
+}
+
+/**
+ * API Puzzle
+ * Puzzle configuration as returned by the API
+ */
+export interface APIPuzzle {
+  type: string;
+  description: string;
+  question?: string;
+  answer?: string;
+  rewardGold?: number;
+}
+
+/**
+ * API Story Event
+ * Story event configuration as returned by the API
+ */
+export interface APIStoryEvent {
+  title: string;
+  description: string;
+  choices?: Array<{
+    text: string;
+    outcome?: {
+      description: string;
+      effect?: string;
+    };
+  }>;
+}
+
+/**
+ * API Room Secret
+ * Secret configuration as returned by the API
+ */
+export interface APIRoomSecret {
+  description: string;
+  rewardGold?: number;
+  revealCondition?: string;
+}
+
+/**
+ * API Room Data
+ * Complete room information as returned by the API
+ */
+export interface APIRoomData {
+  id: number;
+  type: string;
+  description: string;
+  x: number;
+  y: number;
+  connections: Direction[];
+  secret?: APIRoomSecret | null;
+  loreEntry?: APILoreEntry | null;
+  puzzle?: APIPuzzle | null;
+  storyEvent?: APIStoryEvent | null;
+  monsters?: APIMonsterData[];
+  isMiniBoss: boolean;
+  isTrap: boolean;
+  isRewardRoom: boolean;
 }
 
 /**
