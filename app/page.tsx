@@ -15,6 +15,11 @@ export default function Home() {
             <p>Create and manage dungeon configurations</p>
           </a>
 
+          <a href="/api-endpoints" className="card">
+            <h2>API Endpoint Config &rarr;</h2>
+            <p>Configure custom API endpoints for dungeons</p>
+          </a>
+
           <a href="/api/dungeon" className="card">
             <h2>API Endpoints &rarr;</h2>
             <p>Access the dungeon CRUD API</p>
