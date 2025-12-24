@@ -184,7 +184,26 @@ export default function DungeonsPage() {
   const addRoom = () => {
     if (!selectedDungeon) return;
     
-    const newRoom = DungeonHelpers.createRoom('empty', { x: 0, y: 0, z: currentFloor }, '');
+    // Find a free coordinate position
+    const currentRooms = getCurrentFloorRooms();
+    let x = 0, y = 0;
+    let found = false;
+    
+    // Try to find an unoccupied coordinate
+    for (let tryY = 0; tryY < selectedDungeon.size.height && !found; tryY++) {
+      for (let tryX = 0; tryX < selectedDungeon.size.width && !found; tryX++) {
+        const occupied = currentRooms.some(r => 
+          r.coordinates.x === tryX && r.coordinates.y === tryY
+        );
+        if (!occupied) {
+          x = tryX;
+          y = tryY;
+          found = true;
+        }
+      }
+    }
+    
+    const newRoom = DungeonHelpers.createRoom('empty', { x, y, z: currentFloor }, '');
     setEditingRoom(newRoom);
     setView('room');
   };
@@ -264,7 +283,7 @@ export default function DungeonsPage() {
   };
 
   const deleteFloor = (floorNumber: number) => {
-    if (!selectedDungeon || !selectedDungeon.floors) return;
+    if (!selectedDungeon || !selectedDungeon.floors || selectedDungeon.floors.length === 0) return;
     if (selectedDungeon.floors.length <= 1) {
       alert('Cannot delete the last floor');
       return;

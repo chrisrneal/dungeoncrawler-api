@@ -1,7 +1,6 @@
 'use client';
 
-import { Room, RoomType, Direction, Dungeon } from '@/lib/api';
-import { CSSProperties } from 'react';
+import { Room, RoomType } from '@/lib/api';
 
 interface DungeonMapProps {
   rooms: Room[];
@@ -49,13 +48,6 @@ export default function DungeonMap({ rooms, onRoomClick, selectedRoomId, gridSiz
 
   const width = maxX - minX + 1;
   const height = maxY - minY + 1;
-
-  // Create a map of coordinates to rooms
-  const roomMap = new Map<string, Room>();
-  rooms.forEach(room => {
-    const key = `${room.coordinates.x},${room.coordinates.y}`;
-    roomMap.set(key, room);
-  });
 
   // Cell size in pixels
   const cellSize = 80;
