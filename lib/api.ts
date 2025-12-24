@@ -136,20 +136,31 @@ export interface Room {
 }
 
 /**
+ * Dungeon floor/level definition
+ */
+export interface DungeonFloor {
+  floorNumber: number;
+  name: string;
+  description: string;
+  rooms: Room[];
+}
+
+/**
  * Complete dungeon definition
  */
 export interface Dungeon {
   id: string;
   name: string;
   difficulty: DifficultyLevel;
-  level: number;
+  level: number; // Recommended player level
   size: {
     width: number;
     height: number;
-    depth?: number; // Optional depth for multi-level dungeons
+    depth?: number; // Number of floors/levels in the dungeon
   };
   description: string;
-  rooms: Room[];
+  rooms: Room[]; // Deprecated: kept for backward compatibility
+  floors?: DungeonFloor[]; // Multi-floor support
   createdAt?: string;
   updatedAt?: string;
 }
@@ -284,34 +295,58 @@ export class DungeonValidator {
   static validateDungeon(dungeon: Dungeon): ValidationResult {
     const errors: ValidationError[] = [];
 
+    // Determine if using multi-floor or legacy single-floor structure
+    const allRooms: Room[] = [];
+    
+    if (dungeon.floors && dungeon.floors.length > 0) {
+      // Multi-floor structure
+      for (const floor of dungeon.floors) {
+        allRooms.push(...floor.rooms);
+      }
+      
+      // Validate that depth matches number of floors
+      if (dungeon.size.depth && dungeon.size.depth !== dungeon.floors.length) {
+        errors.push({ 
+          field: 'size.depth', 
+          message: `Dungeon depth (${dungeon.size.depth}) should match number of floors (${dungeon.floors.length})` 
+        });
+      }
+    } else if (dungeon.rooms && dungeon.rooms.length > 0) {
+      // Legacy single-floor structure
+      allRooms.push(...dungeon.rooms);
+    } else {
+      errors.push({ field: 'rooms', message: 'Dungeon must have at least one floor with rooms' });
+      return { valid: false, errors };
+    }
+
     // Check for at least one entrance room
-    const entranceRooms = dungeon.rooms.filter(room => room.type === 'entrance');
+    const entranceRooms = allRooms.filter(room => room.type === 'entrance');
     if (entranceRooms.length === 0) {
       errors.push({ field: 'rooms', message: 'Dungeon must have at least one entrance room' });
     }
 
     // Check for at least one boss room
-    const bossRooms = dungeon.rooms.filter(room => room.type === 'boss');
+    const bossRooms = allRooms.filter(room => room.type === 'boss');
     if (bossRooms.length === 0) {
       errors.push({ field: 'rooms', message: 'Dungeon must have at least one boss room' });
     }
 
     // Validate unique coordinates
     const coordinateSet = new Set<string>();
-    for (const room of dungeon.rooms) {
+    for (const room of allRooms) {
       const coordKey = `${room.coordinates.x},${room.coordinates.y},${room.coordinates.z || 0}`;
       if (coordinateSet.has(coordKey)) {
         errors.push({ 
           field: `room.${room.id}.coordinates`, 
-          message: `Duplicate coordinates found at (${room.coordinates.x}, ${room.coordinates.y})` 
+          message: `Duplicate coordinates found at (${room.coordinates.x}, ${room.coordinates.y}, ${room.coordinates.z || 0})` 
         });
       }
       coordinateSet.add(coordKey);
     }
 
     // Validate reciprocal connections
-    const roomMap = new Map(dungeon.rooms.map(room => [room.id, room]));
-    for (const room of dungeon.rooms) {
+    const roomMap = new Map(allRooms.map(room => [room.id, room]));
+    for (const room of allRooms) {
       for (const connection of room.connections) {
         const targetRoom = roomMap.get(connection.targetRoomId);
         if (!targetRoom) {
@@ -338,7 +373,7 @@ export class DungeonValidator {
     }
 
     // Validate monster stats scaling based on dungeon level
-    for (const room of dungeon.rooms) {
+    for (const room of allRooms) {
       if (room.monsters) {
         for (const monster of room.monsters) {
           if (monster.level < dungeon.level - 2 || monster.level > dungeon.level + 2) {
@@ -516,6 +551,91 @@ export class DungeonHelpers {
         hidden: false
       });
     }
+  }
+
+  /**
+   * Creates a new empty floor
+   */
+  static createEmptyFloor(floorNumber: number, name?: string): DungeonFloor {
+    return {
+      floorNumber,
+      name: name || `Floor ${floorNumber}`,
+      description: '',
+      rooms: []
+    };
+  }
+
+  /**
+   * Creates a new multi-floor dungeon
+   */
+  static createMultiFloorDungeon(name: string, numFloors: number = 1, difficulty: DifficultyLevel = 'Easy'): Dungeon {
+    const floors: DungeonFloor[] = [];
+    for (let i = 1; i <= numFloors; i++) {
+      floors.push(this.createEmptyFloor(i));
+    }
+    
+    return {
+      id: this.generateId(),
+      name,
+      difficulty,
+      level: 1,
+      size: { width: 10, height: 10, depth: numFloors },
+      description: '',
+      rooms: [], // Keep for backward compatibility
+      floors,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Converts legacy single-floor dungeon to multi-floor format
+   */
+  static convertToMultiFloor(dungeon: Dungeon): Dungeon {
+    if (dungeon.floors && dungeon.floors.length > 0) {
+      // Already multi-floor
+      return dungeon;
+    }
+
+    // Create a single floor from existing rooms
+    const floor: DungeonFloor = {
+      floorNumber: 1,
+      name: 'Ground Floor',
+      description: 'Main level',
+      rooms: dungeon.rooms || []
+    };
+
+    return {
+      ...dungeon,
+      floors: [floor],
+      size: {
+        ...dungeon.size,
+        depth: 1
+      },
+      updatedAt: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Gets all rooms from a dungeon (handles both legacy and multi-floor)
+   */
+  static getAllRooms(dungeon: Dungeon): Room[] {
+    if (dungeon.floors && dungeon.floors.length > 0) {
+      return dungeon.floors.flatMap(floor => floor.rooms);
+    }
+    return dungeon.rooms || [];
+  }
+
+  /**
+   * Gets rooms for a specific floor
+   */
+  static getFloorRooms(dungeon: Dungeon, floorNumber: number): Room[] {
+    if (dungeon.floors) {
+      const floor = dungeon.floors.find(f => f.floorNumber === floorNumber);
+      return floor?.rooms || [];
+    }
+    // Legacy format: all rooms are on floor 0 or 1
+    return floorNumber === 1 ? (dungeon.rooms || []) : [];
   }
 
   /**
